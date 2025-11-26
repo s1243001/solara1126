@@ -26,7 +26,7 @@ def Page():
     # 3.1. 定義響應式狀態
     country, set_country = solara.use_state(DEFAULT_COUNTRY)
 
-    # 3.2. 根據選擇的國家篩選資料 
+    # 3.2. 根據選擇的國家篩選資料
     def get_filtered_data(selected_country):
         print(f"Filtering data for: {selected_country}")
         try:
@@ -37,7 +37,6 @@ def Page():
                 ORDER BY population DESC
             """
             city_df = con.sql(sql_select_wkt).df()
-            
             gdf = leafmap.df_to_gdf(
                 city_df,
                 geometry="geometry",
@@ -49,24 +48,25 @@ def Page():
 
     gdf = solara.use_memo(lambda: get_filtered_data(country), dependencies=[country])
 
-    # 3.3. 下拉式選單 (Select) - 修正狀態綁定
+    # 3.3. 下拉式選單 (Select)
+    # 修正：將狀態和更新函式以 (state, set_state) 形式傳給 value 
     select_widget = solara.Select(
         label="選擇國家",
-        value=(country, set_country), # <--- 修正點
+        value=(country, set_country),  # <--- 修正點
         values=ALL_COUNTRYS,
     )
     
     # 3.4. Leafmap 地圖組件
     m = leafmap.Map(
         style="dark-matter",
-        center=[0,0],
+        center=(0, 0),
         zoom=2
-        )
+    )
     m.add_basemap("Esri.WorldImagery")
 
     # 3.5. 在地圖上添加篩選後的資料
-    
-    m.add_data(
+    if not gdf.empty:
+        m.add_data(
              gdf,
              layer_type="circle",
              fill_color="#FFD700",
@@ -74,9 +74,14 @@ def Page():
              stroke_color="#FFFFFF",
              name=f"{country} Cities"
         )
-    m.zoom_to_data(gdf)
-    map_widget = m.to_solara()
-       
+        m.zoom_to_data(gdf)
+        map_widget = m.to_solara()
+    else:
+        warning_widget = solara.Warning(f"**沒有找到 {country} 的城市數據。** 請嘗試選擇其他國家。")
+        map_widget = solara.Column(
+             [warning_widget, m.to_solara()]
+        )
+    
     # 3.6. 返回 Solara 渲染的元素：使用 solara.Column 垂直堆疊
     return solara.Column(
         [
