@@ -85,7 +85,6 @@ def Page():
         map_widget = solara.Div(
             solara.VBox(
                 [m.to_solara()], 
-                
             ),
             key=country # 將 key 傳遞給 Div
         )
@@ -96,8 +95,7 @@ def Page():
         # *** 修正 key 傳遞：使用 solara.Div 作為 key 容器 ***
         map_content = solara.VBox(
              [warning_widget, m.to_solara()],
-             style={"height": "70vh", "width": "100%"}
-        )
+            )
         map_widget = solara.Div(
             map_content,
             key=f"no-data-{country}" # 將 key 傳遞給 Div
