@@ -205,3 +205,19 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+.streamlit/secrets.toml
+ 
+ *.tif
+ *.tiff
+ *.TIF
+ *.TIFF
+ *.asc
+ *.shp
+ *.shx
+ *.dbf
+ *.prj
+ *.cpg
+ *.geojson
+ *.kml
+ *.gpkg
