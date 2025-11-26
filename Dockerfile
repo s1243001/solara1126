@@ -1,15 +1,16 @@
----
-title: DuckDB Solara
-emoji: 📚
-colorFrom: green
-colorTo: yellow
-sdk: docker
-pinned: false
-license: mit
-short_description: A solara web app template for DuckDB
----
-This is a Solara web app for DuckDB. Click on the menu above to see the different examples.
+FROM quay.io/jupyter/base-notebook:latest
 
-Source code: <https://github.com/opengeos/duckdb-solara>
+COPY requirements.txt .
+RUN pip install -r requirements.txt
 
-![](https://github.com/user-attachments/assets/216789ff-7e9d-46df-8bb0-9fbaca531a39)
+RUN mkdir ./pages
+COPY /pages ./pages
+
+WORKDIR /home/jovyan
+USER jovyan
+
+EXPOSE 7860
+
+HEALTHCHECK CMD curl --fail http://localhost:7860/_stcore/health
+
+ENTRYPOINT ["solara", "run", "./pages", "--host=0.0.0.0", "--port=7860"]
