@@ -1,4 +1,3 @@
-import json
 import duckdb
 import solara
 import leafmap.maplibregl as leafmap
@@ -15,8 +14,11 @@ con.load_extension("spatial")
 DATA_URL = 'https://data.gishub.org/duckdb/cities.csv'
 
 # --- 2. 獲取所有國家列表 (用於下拉選單) ---
+# 提前從檔案中讀取所有不重複的國家名稱
 countrys_df = con.sql(f"SELECT DISTINCT country FROM '{DATA_URL}' ORDER BY country").df()
 ALL_COUNTRYS = countrys_df['country'].tolist()
+
+# 設定預設國家
 DEFAULT_COUNTRY = "USA" if "USA" in ALL_COUNTRYS else ALL_COUNTRYS[0]
 
 # --- 3. Solara 組件定義 ---
@@ -26,17 +28,20 @@ def Page():
     # 3.1. 定義響應式狀態
     country, set_country = solara.use_state(DEFAULT_COUNTRY)
 
-    # 3.2. 根據選擇的國家篩選資料
+    # 3.2. 根據選擇的國家篩選資料 (使用 solara.use_memo)
     def get_filtered_data(selected_country):
         print(f"Filtering data for: {selected_country}")
         try:
+            # 註：這裡使用標準的 'longitude'。如果數據無法加載，請嘗試替換為 'longtitude'
             sql_select_wkt = f"""
-                SELECT name, population, ST_Point(longtitude, latitude) AS geometry
+                SELECT name, population, ST_Point(longitude, latitude) AS geometry
                 FROM '{DATA_URL}'
                 WHERE country = '{selected_country}'
                 ORDER BY population DESC
             """
             city_df = con.sql(sql_select_wkt).df()
+            
+            # 使用 leafmap.df_to_gdf 轉換為 GeoDataFrame
             gdf = leafmap.df_to_gdf(
                 city_df,
                 geometry="geometry",
@@ -46,17 +51,17 @@ def Page():
             print(f"Error running DuckDB query: {e}")
             return pd.DataFrame()
 
+    # 使用 use_memo 確保只有在 `country` 改變時才重新執行資料篩選
     gdf = solara.use_memo(lambda: get_filtered_data(country), dependencies=[country])
 
-    # 3.3. 下拉式選單 (Select)
-    # 修正：將狀態和更新函式以 (state, set_state) 形式傳給 value 
+    # 3.3. 下拉式選單 (Select) - 確保狀態正確綁定
     select_widget = solara.Select(
         label="選擇國家",
-        value=(country, set_country),  # <--- 修正點
+        value=(country, set_country),  # 確保狀態能夠更新
         values=ALL_COUNTRYS,
     )
     
-    # 3.4. Leafmap 地圖組件
+    # 3.4. Leafmap 地圖組件 (每次渲染時都創建一個新的實例)
     m = leafmap.Map(
         style="dark-matter",
         center=(0, 0),
@@ -75,11 +80,22 @@ def Page():
              name=f"{country} Cities"
         )
         m.zoom_to_data(gdf)
-        map_widget = m.to_solara()
+        
+        # *** 關鍵修正：使用 key 屬性強制地圖組件重新創建 ***
+        # 這能解決 ipywidgets/Leafmap 在 Solara 狀態變更時更新失敗的問題
+        map_widget = solara.VBox(
+            [m.to_solara()], 
+            key=country, # 當 country 狀態改變，地圖強制刷新
+            style={"height": "70vh", "width": "100%"}
+        )
     else:
+        # 如果沒有數據，顯示警告訊息
         warning_widget = solara.Warning(f"**沒有找到 {country} 的城市數據。** 請嘗試選擇其他國家。")
         map_widget = solara.Column(
-             [warning_widget, m.to_solara()]
+             # 即使是無數據狀態也使用 key，防止基礎地圖實例出錯
+             [warning_widget, m.to_solara()],
+             key=f"no-data-{country}", 
+             style={"height": "70vh", "width": "100%"}
         )
     
     # 3.6. 返回 Solara 渲染的元素：使用 solara.Column 垂直堆疊
@@ -89,4 +105,6 @@ def Page():
             solara.Markdown("---"), 
             map_widget
         ],
+        align="center",
+        style={"width": "100%", "maxWidth": "1200px"}
     )
