@@ -1,7 +1,6 @@
 anymap
 fiona
 geopandas
-leafmap>=0.57.8
+leafmap.maplibregl-jupyter
 mapclassify
 solara
-maplibregl-jupyter
