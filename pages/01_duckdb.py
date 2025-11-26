@@ -15,59 +15,45 @@ con.load_extension("spatial")
 DATA_URL = 'https://data.gishub.org/duckdb/cities.csv'
 
 # --- 2. 獲取所有國家列表 (用於下拉選單) ---
-# 提前從檔案中讀取所有不重複的國家名稱
 countrys_df = con.sql(f"SELECT DISTINCT country FROM '{DATA_URL}' ORDER BY country").df()
-    # 轉換為 Python 列表
 ALL_COUNTRYS = countrys_df['country'].tolist()
-
-# 設定預設國家
 DEFAULT_COUNTRY = "USA" if "USA" in ALL_COUNTRYS else ALL_COUNTRYS[0]
 
 # --- 3. Solara 組件定義 ---
 
 @solara.component
 def Page():
-    # 3.1. 定義響應式狀態 (使用 solara.use_reactive)
-    # country: 儲存使用者當前選擇的國家
+    # 3.1. 定義響應式狀態
     country, set_country = solara.use_state(DEFAULT_COUNTRY)
 
-    # 3.2. 根據選擇的國家篩選資料 (使用 solara.use_memo)
-    # 當 country 改變時，這個區塊會自動重新計算
+    # 3.2. 根據選擇的國家篩選資料 
     def get_filtered_data(selected_country):
         print(f"Filtering data for: {selected_country}")
         try:
-            # SQL 查詢：篩選國家並將經緯度轉換為 WKT 點幾何
+            # 這裡使用標準的 'longitude'，如果無法讀取，請手動改為 'longtitude' 嘗試
             sql_select_wkt = f"""
-                SELECT name, population, ST_Point(longtitude, latitude) AS geometry
+                SELECT name, population, ST_Point(longitude, latitude) AS geometry
                 FROM '{DATA_URL}'
                 WHERE country = '{selected_country}'
                 ORDER BY population DESC
             """
             city_df = con.sql(sql_select_wkt).df()
             
-            # 使用 leafmap.df_to_gdf 轉換為 GeoDataFrame
-            # 注意：這裡將 WKT 欄位名修正為 SQL 中 AS 的 'geometry'
-            # 由於 leafmap/maplibregl 傾向於 WGS84 (EPSG:4326)，可以省略 src_crs/dst_crs 參數
-            # 但如果數據源有特定 CRS，則應加上。這裡假設 DuckDB 的 ST_Point 輸出的點是 WGS84。
             gdf = leafmap.df_to_gdf(
                 city_df,
-                geometry="geometry", # 使用 SQL 輸出的欄位名
-                # src_crs="EPSG:4326", # 假設 WKT 已經是 4326
-                # dst_crs="EPSG:4326"
+                geometry="geometry",
             )
             return gdf
         except Exception as e:
             print(f"Error running DuckDB query: {e}")
-            return pd.DataFrame() # 返回空 DataFrame
+            return pd.DataFrame()
 
-    # 使用 use_memo 確保只有在 `country` 改變時才重新執行資料篩選
     gdf = solara.use_memo(lambda: get_filtered_data(country), dependencies=[country])
 
-    # 3.3. 下拉式選單 (Select)
-    # 當使用者選擇一個新國家時，set_country 會更新 country 狀態
+    # 3.3. 下拉式選單 (Select) - 修正狀態綁定
     select_widget = solara.Select(
         label="選擇國家",
-        value=(country, set_country),
+        value=(country, set_country), # <--- 修正點
         values=ALL_COUNTRYS,
     )
     
@@ -78,8 +64,6 @@ def Page():
         zoom=2
     )
     m.add_basemap("Esri.WorldImagery")
-
-    # ... 程式碼中間部分保持不變 ...
 
     # 3.5. 在地圖上添加篩選後的資料
     if not gdf.empty:
@@ -92,15 +76,12 @@ def Page():
              name=f"{country} Cities"
         )
         m.zoom_to_data(gdf)
-        
-        # 這裡將地圖包裝在 solara.VBox 中，以確保它作為一個完整的組件被處理
-        map_widget = solara.VBox([m.to_solara()]) 
+        map_widget = m.to_solara()
     else:
         # 如果沒有數據，顯示警告訊息
         warning_widget = solara.Warning(f"**沒有找到 {country} 的城市數據。** 請嘗試選擇其他國家。")
-        # 這裡使用 solara.VBox 將警告和地圖包裝在一起
-        map_widget = solara.VBox(
-            [warning_widget, m.to_solara()] 
+        map_widget = solara.Column(
+             [warning_widget, m.to_solara()]
         )
     
     # 3.6. 返回 Solara 渲染的元素：使用 solara.Column 垂直堆疊
@@ -108,8 +89,6 @@ def Page():
         [
             select_widget, 
             solara.Markdown("---"), 
-            map_widget # map_widget 現在是一個 solara.VBox
+            map_widget
         ],
     )
-
-# 備註：您不需要手動轉換為 GeoJSON，leafmap.Map.add_data 可以直接接受 GeoDataFrame。
