@@ -1,0 +1,6 @@
+anymap
+fiona
+geopandas
+leafmap>=0.57.8
+mapclassify
+solara
