@@ -38,7 +38,7 @@ def Page():
         try:
             # SQL 查詢：篩選國家並將經緯度轉換為 WKT 點幾何
             sql_select_wkt = f"""
-                SELECT name, population, ST_Point(longitude, latitude) AS geometry
+                SELECT name, population, ST_Point(longtitude, latitude) AS geometry
                 FROM '{DATA_URL}'
                 WHERE country = '{selected_country}'
                 ORDER BY population DESC
@@ -67,7 +67,7 @@ def Page():
     # 當使用者選擇一個新國家時，set_country 會更新 country 狀態
     select_widget = solara.Select(
         label="選擇國家",
-        value=country,
+        value=(country, set_country),
         values=ALL_COUNTRYS,
     )
     
