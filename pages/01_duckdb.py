@@ -65,40 +65,49 @@ def Page():
 
     # 3.3. 下拉式選單 (Select)
     # 當使用者選擇一個新國家時，set_country 會更新 country 狀態
-    solara.Select(
-        label="選擇國家", 
-        value=country, 
+    select_widget = solara.Select(
+        label="選擇國家",
+        value=country,
         values=ALL_COUNTRYS,
-        on_value_change=set_country # 將選擇的值傳給 set_country
+        on_value_change=set_country
     )
-
+    
     # 3.4. Leafmap 地圖組件
-    # 地圖組件會隨著 gdf 的更新而重新渲染
     m = leafmap.Map(
-        style="dark-matter", 
-        center=(0, 0), # 預設中心點，之後會自動縮放到資料範圍
+        style="dark-matter",
+        center=(0, 0),
         zoom=2
     )
     m.add_basemap("Esri.WorldImagery")
 
     # 3.5. 在地圖上添加篩選後的資料
     if not gdf.empty:
-        # 將 Leafmap 的 add_data 邏輯移到這裡
         m.add_data(
              gdf,
              layer_type="circle",
              fill_color="#FFD700",
              radius=6,
              stroke_color="#FFFFFF",
-             name=f"{country} Cities" # 顯示當前國家名稱
+             name=f"{country} Cities"
         )
-        # 讓地圖自動縮放到點的範圍 (fit_bounds)
-        m.zoom_to_data(gdf) 
+        m.zoom_to_data(gdf)
+        map_widget = m.to_solara()
     else:
-        # 處理沒有數據的情況
-        solara.Warning(f"**沒有找到 {country} 的城市數據。** 請嘗試選擇其他國家。")
+        # 如果沒有數據，顯示警告訊息
+        warning_widget = solara.Warning(f"**沒有找到 {country} 的城市數據。** 請嘗試選擇其他國家。")
+        map_widget = solara.Column(
+            [warning_widget, m.to_solara()] # 將警告和地圖都包含在內
+        )
     
-    # 3.6. 返回 Solara 渲染的元素
-    return m.to_solara()
+    # 3.6. 返回 Solara 渲染的元素：使用 solara.Column 垂直堆疊下拉選單和地圖
+    return solara.Column(
+        [
+            select_widget, # 下拉選單在最上方
+            solara.Markdown("---"), # 可選：增加分隔線
+            map_widget     # 地圖/警告在下方
+        ],
+        # 可選：設定 Column 的整體寬度，例如 90%
+        # style={"width": "90%"},
+    )
 
 # 備註：您不需要手動轉換為 GeoJSON，leafmap.Map.add_data 可以直接接受 GeoDataFrame。
