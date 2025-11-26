@@ -79,6 +79,8 @@ def Page():
     )
     m.add_basemap("Esri.WorldImagery")
 
+    # ... 程式碼中間部分保持不變 ...
+
     # 3.5. 在地圖上添加篩選後的資料
     if not gdf.empty:
         m.add_data(
@@ -90,23 +92,24 @@ def Page():
              name=f"{country} Cities"
         )
         m.zoom_to_data(gdf)
-        map_widget = m.to_solara()
+        
+        # 這裡將地圖包裝在 solara.VBox 中，以確保它作為一個完整的組件被處理
+        map_widget = solara.VBox([m.to_solara()]) 
     else:
         # 如果沒有數據，顯示警告訊息
         warning_widget = solara.Warning(f"**沒有找到 {country} 的城市數據。** 請嘗試選擇其他國家。")
-        map_widget = solara.Column(
-            [warning_widget, m.to_solara()] # 將警告和地圖都包含在內
+        # 這裡使用 solara.VBox 將警告和地圖包裝在一起
+        map_widget = solara.VBox(
+            [warning_widget, m.to_solara()] 
         )
     
-    # 3.6. 返回 Solara 渲染的元素：使用 solara.Column 垂直堆疊下拉選單和地圖
+    # 3.6. 返回 Solara 渲染的元素：使用 solara.Column 垂直堆疊
     return solara.Column(
         [
-            select_widget, # 下拉選單在最上方
-            solara.Markdown("---"), # 可選：增加分隔線
-            map_widget     # 地圖/警告在下方
+            select_widget, 
+            solara.Markdown("---"), 
+            map_widget # map_widget 現在是一個 solara.VBox
         ],
-        # 可選：設定 Column 的整體寬度，例如 90%
-        # style={"width": "90%"},
     )
 
 # 備註：您不需要手動轉換為 GeoJSON，leafmap.Map.add_data 可以直接接受 GeoDataFrame。
