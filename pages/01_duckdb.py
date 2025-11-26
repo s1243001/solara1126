@@ -30,9 +30,8 @@ def Page():
     def get_filtered_data(selected_country):
         print(f"Filtering data for: {selected_country}")
         try:
-            # 這裡使用標準的 'longitude'，如果無法讀取，請手動改為 'longtitude' 嘗試
             sql_select_wkt = f"""
-                SELECT name, population, ST_Point(longitude, latitude) AS geometry
+                SELECT name, population, ST_Point(longtitude, latitude) AS geometry
                 FROM '{DATA_URL}'
                 WHERE country = '{selected_country}'
                 ORDER BY population DESC
