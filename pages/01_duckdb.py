@@ -81,22 +81,26 @@ def Page():
         )
         m.zoom_to_data(gdf)
         
-        # *** 關鍵修正：使用 key 屬性強制地圖組件重新創建 ***
-        # 這能解決 ipywidgets/Leafmap 在 Solara 狀態變更時更新失敗的問題
-        map_widget = solara.VBox(
-            [m.to_solara()], 
-            key=country, # 當 country 狀態改變，地圖強制刷新
-            style={"height": "70vh", "width": "100%"}
+        # *** 修正 key 傳遞：將 key 應用到 solara.Div 容器上，強制地圖組件重新創建 ***
+        map_widget = solara.Div(
+            solara.VBox(
+                [m.to_solara()], 
+                style={"height": "70vh", "width": "100%"}
+            ),
+            key=country # 將 key 傳遞給 Div
         )
     else:
         # 如果沒有數據，顯示警告訊息
         warning_widget = solara.Warning(f"**沒有找到 {country} 的城市數據。** 請嘗試選擇其他國家。")
-        # *** 修正 TypeError: 將 solara.Column 替換為 solara.VBox，以支援 key 屬性 ***
-        map_widget = solara.VBox(
-             # 即使是無數據狀態也使用 key，防止基礎地圖實例出錯
+        
+        # *** 修正 key 傳遞：使用 solara.Div 作為 key 容器 ***
+        map_content = solara.VBox(
              [warning_widget, m.to_solara()],
-             key=f"no-data-{country}", 
              style={"height": "70vh", "width": "100%"}
+        )
+        map_widget = solara.Div(
+            map_content,
+            key=f"no-data-{country}" # 將 key 傳遞給 Div
         )
     
     # 3.6. 返回 Solara 渲染的元素：使用 solara.Column 垂直堆疊
