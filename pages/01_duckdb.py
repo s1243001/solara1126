@@ -85,7 +85,7 @@ def Page():
         map_widget = solara.Div(
             solara.VBox(
                 [m.to_solara()], 
-                style={"height": "70vh", "width": "100%"}
+                
             ),
             key=country # 將 key 傳遞給 Div
         )
