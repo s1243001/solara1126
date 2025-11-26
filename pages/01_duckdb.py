@@ -69,7 +69,6 @@ def Page():
         label="選擇國家",
         value=country,
         values=ALL_COUNTRYS,
-        on_value_change=set_country
     )
     
     # 3.4. Leafmap 地圖組件
