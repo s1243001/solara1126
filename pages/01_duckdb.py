@@ -60,7 +60,6 @@ def Page():
     # 3.4. Leafmap 地圖組件
     m = leafmap.Map(
         style="dark-matter",
-        center=(0, 0),
         zoom=2
     )
     m.add_basemap("Esri.WorldImagery")
