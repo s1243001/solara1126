@@ -59,13 +59,14 @@ def Page():
     # 3.4. Leafmap 地圖組件
     m = leafmap.Map(
         style="dark-matter",
+        center=[0,0],
         zoom=2
-    )
+        )
     m.add_basemap("Esri.WorldImagery")
 
     # 3.5. 在地圖上添加篩選後的資料
-    if not gdf.empty:
-        m.add_data(
+    
+    m.add_data(
              gdf,
              layer_type="circle",
              fill_color="#FFD700",
@@ -73,15 +74,9 @@ def Page():
              stroke_color="#FFFFFF",
              name=f"{country} Cities"
         )
-        m.zoom_to_data(gdf)
-        map_widget = m.to_solara()
-    else:
-        # 如果沒有數據，顯示警告訊息
-        warning_widget = solara.Warning(f"**沒有找到 {country} 的城市數據。** 請嘗試選擇其他國家。")
-        map_widget = solara.Column(
-             [warning_widget, m.to_solara()]
-        )
-    
+    m.zoom_to_data(gdf)
+    map_widget = m.to_solara()
+       
     # 3.6. 返回 Solara 渲染的元素：使用 solara.Column 垂直堆疊
     return solara.Column(
         [
