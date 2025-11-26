@@ -91,7 +91,8 @@ def Page():
     else:
         # 如果沒有數據，顯示警告訊息
         warning_widget = solara.Warning(f"**沒有找到 {country} 的城市數據。** 請嘗試選擇其他國家。")
-        map_widget = solara.Column(
+        # *** 修正 TypeError: 將 solara.Column 替換為 solara.VBox，以支援 key 屬性 ***
+        map_widget = solara.VBox(
              # 即使是無數據狀態也使用 key，防止基礎地圖實例出錯
              [warning_widget, m.to_solara()],
              key=f"no-data-{country}", 
