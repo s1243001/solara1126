@@ -89,8 +89,12 @@ def CityMapPlotly(df: pd.DataFrame, country: str):
     )
     
     # 設置地圖佈局
+    # 修正：'scope' 只能是 ['africa', 'asia', 'europe', 'north america', 'oceania', 'south america', 'usa', 'world'] 之一
+    # 我們使用 'usa' 針對美國，其他國家則使用 'world'，讓 Plotly 自動居中。
+    map_scope = 'usa' if country == 'USA' else 'world'
+
     fig.update_geos(
-        scope=country.lower() if country.lower() != 'usa' else 'north america',
+        scope=map_scope,
         visible=False,
         showcountries=True,
         countrycolor="Black"
