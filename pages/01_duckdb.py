@@ -71,7 +71,7 @@ def Page():
             color_continuous_scale=px.colors.sequential.Sunset,
             projection="natural earth",
             title=f"{country} 主要城市分佈",
-            height=600,
+            height=600, # 設定圖表高度 (圖表內部設定)
         )
         
         # 設置地圖佈局
@@ -86,8 +86,9 @@ def Page():
             coloraxis_showscale=False
         )
         
-        # 使用 solara.FigurePlotly 渲染 Plotly 圖表
-        map_widget = solara.FigurePlotly(fig, style={"height": "70vh", "width": "100%"})
+        # *** 修正：將 style 從 FigurePlotly 移除，並將 FigurePlotly 包裹在 Div 中應用 style ***
+        plotly_figure = solara.FigurePlotly(fig)
+        map_widget = solara.Div([plotly_figure], style={"height": "70vh", "width": "100%"})
         
     else:
         # 如果沒有數據，顯示警告訊息
@@ -97,14 +98,17 @@ def Page():
         fig_empty = go.Figure()
         fig_empty.update_layout(
             title="請選擇一個國家",
-            height=600
+            height=600 # 設定圖表高度 (圖表內部設定)
         )
         
-        map_widget = solara.Column(
+        # *** 修正：將 style 從 FigurePlotly 移除，並將內容包裹在 Div 中應用 style ***
+        plotly_figure_empty = solara.FigurePlotly(fig_empty)
+        map_widget = solara.Div(
             [
                 warning_widget,
-                solara.FigurePlotly(fig_empty, style={"height": "70vh", "width": "100%"})
-            ]
+                plotly_figure_empty
+            ],
+            style={"height": "70vh", "width": "100%"}
         )
     
     # 3.5. 返回 Solara 渲染的元素：使用 solara.Column 垂直堆疊
