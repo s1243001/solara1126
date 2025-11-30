@@ -81,28 +81,30 @@ def Page():
         )
         m.zoom_to_data(gdf)
         
-        # *** 修正：將 solara.VBox 包裹在列表中作為 Div 的 children ***
+        # *** 修正：將 style 從 VBox 移到 Div，解決 TypeError ***
         map_widget = solara.Div(
-            [ # <--- 關鍵修正：將子組件放入列表中
+            [ # 關鍵修正：將子組件放入列表中
                 solara.VBox(
-                    [m.to_solara()], 
-                    style={"height": "70vh", "width": "100%"}
+                    [m.to_solara()]
+                    # style 已移除
                 )
             ],
-            key=country # 將 key 傳遞給 Div
+            key=country, # 將 key 傳遞給 Div
+            style={"height": "70vh", "width": "100%"} # style 移動到 Div
         )
     else:
         # 如果沒有數據，顯示警告訊息
         warning_widget = solara.Warning(f"**沒有找到 {country} 的城市數據。** 請嘗試選擇其他國家。")
         
-        # *** 修正：將 solara.VBox 包裹在列表中作為 Div 的 children ***
+        # *** 修正：將 style 從 VBox 移到 Div，解決 TypeError ***
         map_content = solara.VBox(
-             [warning_widget, m.to_solara()],
-             style={"height": "70vh", "width": "100%"}
+             [warning_widget, m.to_solara()]
+             # style 已移除
         )
         map_widget = solara.Div(
-            [map_content], # <--- 關鍵修正：將子組件放入列表中
-            key=f"no-data-{country}" # 將 key 傳遞給 Div
+            [map_content], # 關鍵修正：將子組件放入列表中
+            key=f"no-data-{country}", # 將 key 傳遞給 Div
+            style={"height": "70vh", "width": "100%"} # style 移動到 Div
         )
     
     # 3.6. 返回 Solara 渲染的元素：使用 solara.Column 垂直堆疊
