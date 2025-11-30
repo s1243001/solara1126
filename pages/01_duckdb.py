@@ -84,23 +84,42 @@ def CityMapPlotly(df: pd.DataFrame, country: str):
         size='population', 
         color='population',
         color_continuous_scale=px.colors.sequential.Sunset,
-        projection="natural earth",
+        # 移除 projection="natural earth"，避免特定投影引起的問題
         title=f"{country} 主要城市分佈",
     )
     
     # 設置地圖佈局
     # 修正：'scope' 只能是 ['africa', 'asia', 'europe', 'north america', 'oceania', 'south america', 'usa', 'world'] 之一
-    # 我們使用 'usa' 針對美國，其他國家則使用 'world'，讓 Plotly 自動居中。
     map_scope = 'usa' if country == 'USA' else 'world'
 
     fig.update_geos(
         scope=map_scope,
         showland=True,           # 確保陸地顯示
         landcolor="lightgray",   # 設定陸地顏色
-        visible=True,            # 確保地理子圖可見 (修正前為 False)
+        visible=True,            # 確保地理子圖可見
         showcountries=True,
-        countrycolor="Black"
+        countrycolor="Black",
+        showsubunits=True,       # 顯示次級單位邊界（如州/省），有助於渲染
+        subunitcolor="darkgray", # 設定次級單位邊界顏色
+        oceancolor="lightblue"   # 設定海洋顏色，讓地圖看起來更完整
     )
+    
+    # 針對非美國國家進行更明確的自動居中設定，以確保視圖集中在數據點上
+    if country != 'USA' and not df.empty:
+        # 計算數據的中心點
+        center_lat = df['latitude'].mean()
+        center_lon = df['longitude'].mean()
+        
+        fig.update_layout(
+            geo=dict(
+                # 設置地圖居中
+                center=dict(lat=center_lat, lon=center_lon),
+                # 調整縮放級別 (1.0 是預設世界視圖，更高的值會放大)
+                # 這裡暫時不設定 zoom，讓 Plotly 決定最佳縮放，但如果數據點非常集中，可能需要手動設定 zoom
+            )
+        )
+
+
     fig.update_layout(
         margin={"r":0,"t":50,"l":0,"b":0},
         coloraxis_showscale=False
