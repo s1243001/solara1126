@@ -86,8 +86,8 @@ def Page():
             coloraxis_showscale=False
         )
         
-        # *** 修正：替換為 solara.Plotly，以提高前端穩定性 ***
-        plotly_figure = solara.Plotly(fig)
+        # *** 修正：將 solara.Plotly 替換回正確的 solara.FigurePlotly ***
+        plotly_figure = solara.FigurePlotly(fig)
         map_widget = solara.Div([plotly_figure], style={"height": "70vh", "width": "100%"})
         
     else:
@@ -101,8 +101,8 @@ def Page():
             # 移除 height=600，依賴外部 CSS 控制高度
         )
         
-        # *** 修正：替換為 solara.Plotly，以提高前端穩定性 ***
-        plotly_figure_empty = solara.Plotly(fig_empty)
+        # *** 修正：將 solara.Plotly 替換回正確的 solara.FigurePlotly ***
+        plotly_figure_empty = solara.FigurePlotly(fig_empty)
         map_widget = solara.Div(
             [
                 warning_widget,
