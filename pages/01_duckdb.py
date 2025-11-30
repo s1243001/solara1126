@@ -81,23 +81,27 @@ def Page():
         )
         m.zoom_to_data(gdf)
         
-        # *** 修正 key 傳遞：將 key 應用到 solara.Div 容器上，強制地圖組件重新創建 ***
+        # *** 修正：將 solara.VBox 包裹在列表中作為 Div 的 children ***
         map_widget = solara.Div(
-            solara.VBox(
-                [m.to_solara()], 
-            ),
+            [ # <--- 關鍵修正：將子組件放入列表中
+                solara.VBox(
+                    [m.to_solara()], 
+                    style={"height": "70vh", "width": "100%"}
+                )
+            ],
             key=country # 將 key 傳遞給 Div
         )
     else:
         # 如果沒有數據，顯示警告訊息
         warning_widget = solara.Warning(f"**沒有找到 {country} 的城市數據。** 請嘗試選擇其他國家。")
         
-        # *** 修正 key 傳遞：使用 solara.Div 作為 key 容器 ***
+        # *** 修正：將 solara.VBox 包裹在列表中作為 Div 的 children ***
         map_content = solara.VBox(
              [warning_widget, m.to_solara()],
-            )
+             style={"height": "70vh", "width": "100%"}
+        )
         map_widget = solara.Div(
-            map_content,
+            [map_content], # <--- 關鍵修正：將子組件放入列表中
             key=f"no-data-{country}" # 將 key 傳遞給 Div
         )
     
