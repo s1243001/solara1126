@@ -95,7 +95,9 @@ def CityMapPlotly(df: pd.DataFrame, country: str):
 
     fig.update_geos(
         scope=map_scope,
-        visible=False,
+        showland=True,           # 確保陸地顯示
+        landcolor="lightgray",   # 設定陸地顏色
+        visible=True,            # 確保地理子圖可見 (修正前為 False)
         showcountries=True,
         countrycolor="Black"
     )
