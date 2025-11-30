@@ -1,7 +1,9 @@
 import duckdb
 import solara
-import leafmap.maplibregl as leafmap
 import pandas as pd
+# 引入 Plotly Express 取代 leafmap
+import plotly.express as px
+import plotly.graph_objects as go
 
 # --- 1. DuckDB 連線設定 (保持不變) ---
 con = duckdb.connect()
@@ -32,27 +34,21 @@ def Page():
     def get_filtered_data(selected_country):
         print(f"Filtering data for: {selected_country}")
         try:
-            # 註：這裡使用標準的 'longitude'。如果數據無法加載，請嘗試替換為 'longtitude'
-            sql_select_wkt = f"""
-                SELECT name, population, ST_Point(longitude, latitude) AS geometry
+            # 獲取城市數據，包含經度和緯度 (Plotly 需要單獨的欄位)
+            sql_select = f"""
+                SELECT name, population, longitude, latitude, country
                 FROM '{DATA_URL}'
                 WHERE country = '{selected_country}'
                 ORDER BY population DESC
             """
-            city_df = con.sql(sql_select_wkt).df()
-            
-            # 使用 leafmap.df_to_gdf 轉換為 GeoDataFrame
-            gdf = leafmap.df_to_gdf(
-                city_df,
-                geometry="geometry",
-            )
-            return gdf
+            city_df = con.sql(sql_select).df()
+            return city_df
         except Exception as e:
             print(f"Error running DuckDB query: {e}")
             return pd.DataFrame()
 
     # 使用 use_memo 確保只有在 `country` 改變時才重新執行資料篩選
-    gdf = solara.use_memo(lambda: get_filtered_data(country), dependencies=[country])
+    df = solara.use_memo(lambda: get_filtered_data(country), dependencies=[country])
 
     # 3.3. 下拉式選單 (Select) - 確保狀態正確綁定
     select_widget = solara.Select(
@@ -61,53 +57,57 @@ def Page():
         values=ALL_COUNTRYS,
     )
     
-    # 3.4. Leafmap 地圖組件 (每次渲染時都創建一個新的實例)
-    m = leafmap.Map(
-        style="dark-matter",
-        center=(0, 0),
-        zoom=2
-    )
-    m.add_basemap("Esri.WorldImagery")
-
-    # 3.5. 在地圖上添加篩選後的資料
-    if not gdf.empty:
-        m.add_data(
-             gdf,
-             layer_type="circle",
-             fill_color="#FFD700",
-             radius=6,
-             stroke_color="#FFFFFF",
-             name=f"{country} Cities"
+    # 3.4. Plotly 地圖繪製邏輯
+    
+    if not df.empty:
+        # 使用 Plotly Express 創建地圖
+        fig = px.scatter_geo(
+            df, 
+            lat='latitude', 
+            lon='longitude',
+            hover_name='name',
+            size='population', 
+            color='population',
+            color_continuous_scale=px.colors.sequential.Sunset,
+            projection="natural earth",
+            title=f"{country} 主要城市分佈",
+            height=600,
         )
-        m.zoom_to_data(gdf)
         
-        # *** 修正：將 style 從 VBox 移到 Div，解決 TypeError ***
-        map_widget = solara.Div(
-            [ # 關鍵修正：將子組件放入列表中
-                solara.VBox(
-                    [m.to_solara()]
-                    # style 已移除
-                )
-            ],
-            key=country, # 將 key 傳遞給 Div
-            style={"height": "70vh", "width": "100%"} # style 移動到 Div
+        # 設置地圖佈局
+        fig.update_geos(
+            scope=country.lower() if country.lower() != 'usa' else 'north america', # 嘗試縮放到國家範圍
+            visible=False,
+            showcountries=True,
+            countrycolor="Black"
         )
+        fig.update_layout(
+            margin={"r":0,"t":50,"l":0,"b":0},
+            coloraxis_showscale=False
+        )
+        
+        # 使用 solara.FigurePlotly 渲染 Plotly 圖表
+        map_widget = solara.FigurePlotly(fig, style={"height": "70vh", "width": "100%"})
+        
     else:
         # 如果沒有數據，顯示警告訊息
         warning_widget = solara.Warning(f"**沒有找到 {country} 的城市數據。** 請嘗試選擇其他國家。")
         
-        # *** 修正：將 style 從 VBox 移到 Div，解決 TypeError ***
-        map_content = solara.VBox(
-             [warning_widget, m.to_solara()]
-             # style 已移除
+        # 創建一個空的 Plotly 圖表作為替代（避免渲染錯誤）
+        fig_empty = go.Figure()
+        fig_empty.update_layout(
+            title="請選擇一個國家",
+            height=600
         )
-        map_widget = solara.Div(
-            [map_content], # 關鍵修正：將子組件放入列表中
-            key=f"no-data-{country}", # 將 key 傳遞給 Div
-            style={"height": "70vh", "width": "100%"} # style 移動到 Div
+        
+        map_widget = solara.Column(
+            [
+                warning_widget,
+                solara.FigurePlotly(fig_empty, style={"height": "70vh", "width": "100%"})
+            ]
         )
     
-    # 3.6. 返回 Solara 渲染的元素：使用 solara.Column 垂直堆疊
+    # 3.5. 返回 Solara 渲染的元素：使用 solara.Column 垂直堆疊
     return solara.Column(
         [
             select_widget, 
