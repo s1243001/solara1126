@@ -104,7 +104,7 @@ def CityMapPlotly(df: pd.DataFrame, country: str):
         oceancolor="lightblue"   # 設定海洋顏色，讓地圖看起來更完整
     )
     
-    # 針對非美國國家進行更明確的自動居中設定，以確保視圖集中在數據點上
+    # 針對非美國國家進行更明確的自動居中設定和縮放
     if country != 'USA' and not df.empty:
         # 計算數據的中心點
         center_lat = df['latitude'].mean()
@@ -114,8 +114,8 @@ def CityMapPlotly(df: pd.DataFrame, country: str):
             geo=dict(
                 # 設置地圖居中
                 center=dict(lat=center_lat, lon=center_lon),
-                # 調整縮放級別 (1.0 是預設世界視圖，更高的值會放大)
-                # 這裡暫時不設定 zoom，讓 Plotly 決定最佳縮放，但如果數據點非常集中，可能需要手動設定 zoom
+                # 增加縮放級別 (scale=1.0 是世界視圖)。4.5 是一個合理的國家級別起始縮放。
+                projection_scale=4.5 
             )
         )
 
