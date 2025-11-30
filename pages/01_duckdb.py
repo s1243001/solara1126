@@ -71,7 +71,7 @@ def Page():
             color_continuous_scale=px.colors.sequential.Sunset,
             projection="natural earth",
             title=f"{country} 主要城市分佈",
-            height=600, # 設定圖表高度 (圖表內部設定)
+            # 移除 height=600，依賴外部 CSS 控制高度
         )
         
         # 設置地圖佈局
@@ -86,8 +86,8 @@ def Page():
             coloraxis_showscale=False
         )
         
-        # *** 修正：將 style 從 FigurePlotly 移除，並將 FigurePlotly 包裹在 Div 中應用 style ***
-        plotly_figure = solara.FigurePlotly(fig)
+        # *** 修正：替換為 solara.Plotly，以提高前端穩定性 ***
+        plotly_figure = solara.Plotly(fig)
         map_widget = solara.Div([plotly_figure], style={"height": "70vh", "width": "100%"})
         
     else:
@@ -98,11 +98,11 @@ def Page():
         fig_empty = go.Figure()
         fig_empty.update_layout(
             title="請選擇一個國家",
-            height=600 # 設定圖表高度 (圖表內部設定)
+            # 移除 height=600，依賴外部 CSS 控制高度
         )
         
-        # *** 修正：將 style 從 FigurePlotly 移除，並將內容包裹在 Div 中應用 style ***
-        plotly_figure_empty = solara.FigurePlotly(fig_empty)
+        # *** 修正：替換為 solara.Plotly，以提高前端穩定性 ***
+        plotly_figure_empty = solara.Plotly(fig_empty)
         map_widget = solara.Div(
             [
                 warning_widget,
