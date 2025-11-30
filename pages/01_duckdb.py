@@ -1,11 +1,13 @@
 import duckdb
 import solara
 import pandas as pd
-# 引入 Plotly Express 取代 leafmap
+# 引入 Plotly Express
 import plotly.express as px
 import plotly.graph_objects as go
 
-# --- 1. DuckDB 連線設定 (保持不變) ---
+# ----------------------------------------------------------------------
+# 1. DuckDB 連線設定與全局變數
+# ----------------------------------------------------------------------
 con = duckdb.connect()
 con.install_extension("httpfs")
 con.install_extension("spatial")
@@ -15,109 +17,143 @@ con.load_extension("spatial")
 # 資料來源 URL
 DATA_URL = 'https://data.gishub.org/duckdb/cities.csv'
 
-# --- 2. 獲取所有國家列表 (用於下拉選單) ---
-# 提前從檔案中讀取所有不重複的國家名稱
+# 提前獲取所有國家列表
 countrys_df = con.sql(f"SELECT DISTINCT country FROM '{DATA_URL}' ORDER BY country").df()
 ALL_COUNTRYS = countrys_df['country'].tolist()
 
 # 設定預設國家
-DEFAULT_COUNTRY = "USA" if "USA" in ALL_COUNTRYS else ALL_COUNTRYS[0]
+DEFAULT_COUNTRY = "USA" if "USA" in ALL_COUNTRYS else (ALL_COUNTRYS[0] if ALL_COUNTRYS else "")
 
-# --- 3. Solara 組件定義 ---
+# ----------------------------------------------------------------------
+# 2. 全局狀態管理 (使用 solara.reactive 模仿同學的結構)
+# ----------------------------------------------------------------------
+all_countries = solara.reactive(ALL_COUNTRYS)
+selected_country = solara.reactive(DEFAULT_COUNTRY) 
+data_df = solara.reactive(pd.DataFrame())
 
+# ----------------------------------------------------------------------
+# 3. 數據處理副作用
+# ----------------------------------------------------------------------
+def load_filtered_data():
+    """當 selected_country 變數改變時，重新執行 DuckDB 查詢並更新 data_df。"""
+    country_name = selected_country.value
+    if not country_name:
+        return
+        
+    print(f"Querying data for: {country_name}")
+    try:
+        sql_query = f"""
+        SELECT name, country, population, latitude, longitude
+        FROM '{DATA_URL}'
+        WHERE country = '{country_name}'
+        ORDER BY population DESC
+        LIMIT 20;
+        """
+        # 使用現有的全局連接，避免重複初始化
+        df_result = con.sql(sql_query).df()
+        data_df.set(df_result)
+    except Exception as e:
+        print(f"Error executing query: {e}")
+        data_df.set(pd.DataFrame())
+
+
+# ----------------------------------------------------------------------
+# 4. 模組化繪圖組件
+# ----------------------------------------------------------------------
 @solara.component
-def Page():
-    # 3.1. 定義響應式狀態
-    country, set_country = solara.use_state(DEFAULT_COUNTRY)
-
-    # 3.2. 根據選擇的國家篩選資料 (使用 solara.use_memo)
-    def get_filtered_data(selected_country):
-        print(f"Filtering data for: {selected_country}")
-        try:
-            # 獲取城市數據，包含經度和緯度 (Plotly 需要單獨的欄位)
-            sql_select = f"""
-                SELECT name, population, longitude, latitude, country
-                FROM '{DATA_URL}'
-                WHERE country = '{selected_country}'
-                ORDER BY population DESC
-            """
-            city_df = con.sql(sql_select).df()
-            return city_df
-        except Exception as e:
-            print(f"Error running DuckDB query: {e}")
-            return pd.DataFrame()
-
-    # 使用 use_memo 確保只有在 `country` 改變時才重新執行資料篩選
-    df = solara.use_memo(lambda: get_filtered_data(country), dependencies=[country])
-
-    # 3.3. 下拉式選單 (Select) - 確保狀態正確綁定
-    select_widget = solara.Select(
-        label="選擇國家",
-        value=(country, set_country),  # 確保狀態能夠更新
-        values=ALL_COUNTRYS,
-    )
-    
-    # 3.4. Plotly 地圖繪製邏輯
-    
-    if not df.empty:
-        # 使用 Plotly Express 創建地圖
-        fig = px.scatter_geo(
-            df, 
-            lat='latitude', 
-            lon='longitude',
-            hover_name='name',
-            size='population', 
-            color='population',
-            color_continuous_scale=px.colors.sequential.Sunset,
-            projection="natural earth",
-            title=f"{country} 主要城市分佈",
-            # 移除 height=600，依賴外部 CSS 控制高度
-        )
-        
-        # 設置地圖佈局
-        fig.update_geos(
-            scope=country.lower() if country.lower() != 'usa' else 'north america', # 嘗試縮放到國家範圍
-            visible=False,
-            showcountries=True,
-            countrycolor="Black"
-        )
-        fig.update_layout(
-            margin={"r":0,"t":50,"l":0,"b":0},
-            coloraxis_showscale=False
-        )
-        
-        # *** 修正：將 solara.Plotly 替換回正確的 solara.FigurePlotly ***
-        plotly_figure = solara.FigurePlotly(fig)
-        map_widget = solara.Div([plotly_figure], style={"height": "70vh", "width": "100%"})
-        
-    else:
-        # 如果沒有數據，顯示警告訊息
+def CityMapPlotly(df: pd.DataFrame, country: str):
+    """
+    使用 Plotly Express 創建城市分佈地圖。
+    """
+    if df.empty:
         warning_widget = solara.Warning(f"**沒有找到 {country} 的城市數據。** 請嘗試選擇其他國家。")
-        
-        # 創建一個空的 Plotly 圖表作為替代（避免渲染錯誤）
         fig_empty = go.Figure()
-        fig_empty.update_layout(
-            title="請選擇一個國家",
-            # 移除 height=600，依賴外部 CSS 控制高度
-        )
+        fig_empty.update_layout(title="請選擇一個國家或數據載入中")
         
-        # *** 修正：將 solara.Plotly 替換回正確的 solara.FigurePlotly ***
-        plotly_figure_empty = solara.FigurePlotly(fig_empty)
-        map_widget = solara.Div(
-            [
-                warning_widget,
-                plotly_figure_empty
-            ],
+        return solara.Div(
+            [warning_widget, solara.FigurePlotly(fig_empty)],
             style={"height": "70vh", "width": "100%"}
         )
+
+    # 使用 Plotly Express 創建地圖
+    fig = px.scatter_geo(
+        df, 
+        lat='latitude', 
+        lon='longitude',
+        hover_name='name',
+        size='population', 
+        color='population',
+        color_continuous_scale=px.colors.sequential.Sunset,
+        projection="natural earth",
+        title=f"{country} 主要城市分佈",
+    )
     
-    # 3.5. 返回 Solara 渲染的元素：使用 solara.Column 垂直堆疊
-    return solara.Column(
-        [
-            select_widget, 
-            solara.Markdown("---"), 
-            map_widget
-        ],
+    # 設置地圖佈局
+    fig.update_geos(
+        scope=country.lower() if country.lower() != 'usa' else 'north america',
+        visible=False,
+        showcountries=True,
+        countrycolor="Black"
+    )
+    fig.update_layout(
+        margin={"r":0,"t":50,"l":0,"b":0},
+        coloraxis_showscale=False
+    )
+    
+    plotly_figure = solara.FigurePlotly(fig)
+    
+    # 將 FigurePlotly 包裹在 Div 中來控制尺寸
+    return solara.Div([plotly_figure], style={"height": "70vh", "width": "100%"})
+
+
+# ----------------------------------------------------------------------
+# 5. 頁面佈局組件
+# ----------------------------------------------------------------------
+@solara.component
+def Page():
+    # 設置依賴項：在 selected_country 改變時，調用 load_filtered_data 函數
+    solara.use_effect(load_filtered_data, dependencies=[selected_country.value])
+    
+    solara.Title("城市地理人口分析 (DuckDB + Solara + Plotly)")
+
+    with solara.Column(
         align="center",
         style={"width": "100%", "maxWidth": "1200px"}
-    )
+    ):
+        # 國家選擇器
+        solara.Select(
+            label="選擇國家",
+            value=selected_country,  # 直接綁定 reactive 變數
+            values=all_countries.value,
+        )
+        
+        solara.Markdown("---") 
+
+        # 根據數據狀態渲染地圖
+        if selected_country.value and not data_df.value.empty:
+            country_code = selected_country.value
+            df = data_df.value
+            
+            # 渲染獨立的地圖組件
+            CityMapPlotly(df=df, country=country_code)
+
+            # 額外添加數據表格和人口分佈長條圖 (參考同學的程式碼結構)
+            solara.Markdown(f"### 📋 數據表格 (前 {len(df)} 大城市)")
+            solara.DataFrame(df)
+            
+            fig_bar = px.bar(
+                df, 
+                x="name",                           
+                y="population",                     
+                color="population",                 
+                title=f"{country_code} 城市人口",
+                labels={"name": "城市名稱", "population": "人口數"},
+                height=400 
+            )
+            fig_bar.update_layout(xaxis_tickangle=-45)
+            solara.FigurePlotly(fig_bar)
+
+        elif selected_country.value:
+            solara.Info(f"正在載入 {selected_country.value} 的數據...")
+        else:
+            solara.Info("正在載入國家清單...")
