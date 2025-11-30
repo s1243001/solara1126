@@ -25,7 +25,7 @@ ALL_COUNTRYS = countrys_df['country'].tolist()
 DEFAULT_COUNTRY = "USA" if "USA" in ALL_COUNTRYS else (ALL_COUNTRYS[0] if ALL_COUNTRYS else "")
 
 # ----------------------------------------------------------------------
-# 2. 全局狀態管理 (使用 solara.reactive 模仿同學的結構)
+# 2. 全局狀態管理 (使用 solara.reactive)
 # ----------------------------------------------------------------------
 all_countries = solara.reactive(ALL_COUNTRYS)
 selected_country = solara.reactive(DEFAULT_COUNTRY) 
